@@ -1,0 +1,9 @@
+---
+
+letsencrypt_install_dir: /opt/letsencrypt/
+letsencrypt_cert_dir: /etc/ssl/letsencrypt/
+letsencrypt_webroot_dir: /srv/www/acme-challenges/
+letsencrypt_skip_test: False # TODO Does this work?
+letsencrypt_email: contact@example.com
+letsencrypt_cert_domains:
+  example.com: [www.example.com, foo.example.com]

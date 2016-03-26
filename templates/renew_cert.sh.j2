@@ -1,0 +1,48 @@
+#!/bin/bash
+# This files is managed by ansible.
+# Any changes will be lost.
+set -e
+
+ACTIVE_CSRS=("{{ letsencrypt_cert_domains|join('\" \n\"') }}")
+INST_DIR="{{ letsencrypt_install_dir }}"
+ACME_DIR="{{ letsencrypt_webroot_dir }}"
+CERT_DIR="{{ letsencrypt_cert_dir }}"
+SKIP_TEST="{{ letsencrypt_skip_test }}"
+
+RELOAD_NGINX=false
+
+sign_csr () {
+	python3 "$INST_DIR/acme-tiny/acme_tiny.py" \
+	--skip-test "$SKIP_TEST" \
+	--account-key "$CERT_DIR/account.key" \
+	--csr "$CERT_DIR/domain.$domain.csr" \
+	--acme-dir "$ACME_DIR" > "$1"
+
+	cat "$1" "$CERT_DIR/intermediate.pem" > "$CERT_DIR/domain.$domain.chained.pem"
+
+	RELOAD_NGINX="true"
+}
+
+for domain in "${ACTIVE_CSRS[@]}"
+do
+	cert_path="$CERT_DIR/domain.$domain.pem"
+
+	if [ ! -e "$cert_path" ]
+	then
+		echo "Creating - $cert_path"
+		sign_csr "$cert_path"
+	elif openssl x509 -checkend 2592000 -noout -in "$cert_path"
+	then # 2592000s == One month
+		not_after=$(openssl x509 -noout -enddate -in "$cert_path")
+		echo "NOT renewing - valid $not_after - $cert_path"
+	else
+		not_after=$(openssl x509 -noout -enddate -in "$cert_path")
+		echo "Renewing - valid $not_after - $cert_path"
+		sign_csr "$cert_path"
+	fi
+done
+
+if [ "$RELOAD_NGINX" = "true" ];
+then
+	sudo systemctl reload nginx
+fi

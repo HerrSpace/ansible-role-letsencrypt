@@ -1,0 +1,10 @@
+# This files is managed by ansible.
+# Any changes will be lost.
+
+[Unit]
+Description=Update Let's Encrypt Certificates
+
+[Service]
+Type=oneshot
+User=letsencrypt
+ExecStart={{ letsencrypt_install_dir }}renew_cert.sh

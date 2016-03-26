@@ -1,0 +1,85 @@
+---
+# Create Keys, CSRs, signing script and systemd service/timer which keep SSL Certs updated.
+
+- name: Add group ssl-cert
+  group: name=ssl-cert system=yes state=present
+
+- name: Add user letsencrypt
+  user: name=letsencrypt system=yes group=ssl-cert state=present home={{ letsencrypt_install_dir }} shell=/bin/bash
+
+- name: Let letsencrypt user reload nginx
+  lineinfile: dest=/etc/sudoers line="letsencrypt ALL = NOPASSWD{{':'}} /bin/systemctl reload nginx"
+
+- name: Manage cert and acme webroot directory
+  file: path={{ item }} state=directory owner=letsencrypt group=ssl-cert mode=750
+  with_items:
+    - "{{ letsencrypt_cert_dir }}"
+    - "{{ letsencrypt_webroot_dir }}"
+    - "{{ letsencrypt_install_dir }}"
+
+- name: Copy letsencrypt intermediate certificate
+  copy: src=lets-encrypt-x1-cross-signed.pem dest={{ letsencrypt_cert_dir }}intermediate.pem owner=letsencrypt group=ssl-cert mode=750
+
+# FIXME: re add
+- name: Get acme-tiny
+  become: yes
+  become_user: letsencrypt
+  git: repo=https://github.com/spaceSub/acme-tiny dest={{ letsencrypt_install_dir }}acme-tiny/
+
+
+
+- name: Generate letsencrypt account key
+  become: yes
+  become_user: letsencrypt
+  command: openssl genrsa -out {{ letsencrypt_cert_dir }}account.key 4096
+  args:
+    creates: "{{ letsencrypt_cert_dir }}account.key"
+
+- name: Generate domain keys
+  become: yes
+  become_user: letsencrypt
+  command: openssl genrsa -out {{ letsencrypt_cert_dir }}domain.{{ item.key }}.key 4096
+  args:
+    creates: "{{ letsencrypt_cert_dir }}domain.{{ item.key }}.key"
+  with_dict: "{{ letsencrypt_cert_domains }}"
+
+- name: Generate CSRs
+  become: yes
+  become_user: letsencrypt
+  command: "openssl req -new -key {{ letsencrypt_cert_dir }}domain.{{ item.key }}.key -sha256 -subj '/CN={{ item.key }}/emailAddress={{ letsencrypt_email }}/subjectAltName={% for name in item.value %}DNS.{{ loop.index }}={{ name }},{% endfor %}'"
+  register: gencsr_cmd
+  changed_when: False
+  with_dict: "{{ letsencrypt_cert_domains }}"
+
+# This makes sure, we regenerate a CSR once the domain list was changed.
+# While args: creates: would not run once a CSR was created.
+- name: Save CSRs
+  become: yes
+  become_user: letsencrypt
+  copy: content={{ item.stdout }} dest={{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.csr
+  when: "item.rc == 0"
+  with_items: "{{ gencsr_cmd.results }}"
+
+
+
+- name: Manage renew_cert.sh
+  template: src=renew_cert.sh.j2 dest={{ letsencrypt_install_dir }}renew_cert.sh owner=letsencrypt group=ssl-cert mode=750
+
+- name: Manage letsencrypt.service
+  template: src=letsencrypt.service.j2 dest=/etc/systemd/system/letsencrypt.service owner=root group=root mode=644
+  register: service_res
+
+- name: Copy letsencrypt.timer
+  copy: src=letsencrypt.timer dest=/etc/systemd/system/letsencrypt.timer owner=root group=root mode=644
+  register: timer_res
+
+- name: Reload systemd units
+  command: systemctl daemon-reload
+  when: service_res.changed or timer_res.changed
+
+- name: Start and enable letsencrypt.timer
+  service: name=letsencrypt.timer enabled=yes state=started
+
+- name: Force run the service now
+  service: name=letsencrypt.service state=started
+

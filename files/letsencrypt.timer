@@ -1,0 +1,14 @@
+# This files is managed by ansible.
+# Any changes will be lost.
+
+[Unit]
+Description=Update Let's Encrypt Certificates
+After=network.target
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=36000
+#+/- 10h
+
+[Install]
+WantedBy=timers.target
