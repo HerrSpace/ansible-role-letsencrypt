@@ -30,9 +30,7 @@
 - name: Get acme-tiny
   become: yes
   become_user: letsencrypt
-  git: repo=https://github.com/spaceSub/acme-tiny dest={{ letsencrypt_install_dir }}acme-tiny/
-
-
+  git: repo=https://github.com/frezbo/acme-tiny dest={{ letsencrypt_install_dir }}acme-tiny/
 
 - name: Generate letsencrypt account key
   become: yes

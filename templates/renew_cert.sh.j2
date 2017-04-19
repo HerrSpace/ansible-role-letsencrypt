@@ -7,16 +7,24 @@ ACTIVE_CSRS=("{{ letsencrypt_cert_domains|join('\" \n\"') }}")
 INST_DIR="{{ letsencrypt_install_dir }}"
 ACME_DIR="{{ letsencrypt_webroot_dir }}"
 CERT_DIR="{{ letsencrypt_cert_dir }}"
-SKIP_TEST="{{ letsencrypt_skip_test }}"
+NO_VERIFY="{{ letsencrypt_no_verify }}"
 
 RELOAD_NGINX=false
 
 sign_csr () {
-	python3 "$INST_DIR/acme-tiny/acme_tiny.py" \
-	--skip-test "$SKIP_TEST" \
-	--account-key "$CERT_DIR/account.key" \
-	--csr "$CERT_DIR/domain.$domain.csr" \
-	--acme-dir "$ACME_DIR" > "$1"
+	if [ "$NO_VERIFY" = "True" ]
+	then
+		python3 "$INST_DIR/acme-tiny/acme_tiny.py" \
+		--no-verify \
+		--account-key "$CERT_DIR/account.key" \
+		--csr "$CERT_DIR/domain.$domain.csr" \
+		--acme-dir "$ACME_DIR" > "$1"
+	else
+		python3 "$INST_DIR/acme-tiny/acme_tiny.py" \
+		--account-key "$CERT_DIR/account.key" \
+		--csr "$CERT_DIR/domain.$domain.csr" \
+		--acme-dir "$ACME_DIR" > "$1"
+	fi
 
 	cat "$1" "$CERT_DIR/intermediate.pem" > "$CERT_DIR/domain.$domain.chained.pem"
 
