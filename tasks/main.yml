@@ -26,7 +26,6 @@
     group: ssl-cert
     mode: 0640
 
-# FIXME: re add
 - name: Get acme-tiny
   become: yes
   become_user: letsencrypt
@@ -35,36 +34,53 @@
 - name: Generate letsencrypt account key
   become: yes
   become_user: letsencrypt
-  command: openssl genrsa -out {{ letsencrypt_cert_dir }}account.key 4096
+  shell: "umask 137; openssl genrsa -out {{ letsencrypt_cert_dir }}account.key 4096"
   args:
     creates: "{{ letsencrypt_cert_dir }}account.key"
 
 - name: Generate domain keys
   become: yes
   become_user: letsencrypt
-  command: openssl genrsa -out {{ letsencrypt_cert_dir }}domain.{{ item.key }}.key 4096
+  shell: "umask 137; openssl ecparam -name secp384r1 -genkey -out {{ letsencrypt_cert_dir }}domain.{{ item.key }}.key"
   args:
     creates: "{{ letsencrypt_cert_dir }}domain.{{ item.key }}.key"
   with_dict: "{{ letsencrypt_cert_domains }}"
 
+# x509v3 and therefore letsencrypt doesn't support subjectAltNames in the subject line.
+# We need to generate the openssl.conf, since there is no openssl req command line switch
+# for the new x509v3 style SAN list.
+- name: Generate openssl.conf files for each CSR
+  become: yes
+  become_user: letsencrypt
+  template:
+    src: openssl.conf.j2
+    dest: "{{ letsencrypt_cert_dir }}domain.{{ item.key }}.openssl.conf"
+    owner: letsencrypt
+    group: ssl-cert
+    mode: 0640
+  with_dict: "{{ letsencrypt_cert_domains }}"
+  register: osslconf_tmpl
+
+# They need to be removed, so the renew_cert.sh recreates them using the new CSRs.
+- name: Remove obsolete SSL Keys.
+  shell: >
+    rm {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.csr;
+    rm {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.pem;
+    rm {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.chained.pem;
+  ignore_errors: True
+  changed_when: True
+  when: "{{ item.changed }}"
+  with_items: "{{ osslconf_tmpl.results }}"
+  # TODO: just ls -l and remove using the file module
+
 - name: Generate CSRs
   become: yes
   become_user: letsencrypt
-  command: "openssl req -new -key {{ letsencrypt_cert_dir }}domain.{{ item.key }}.key -sha256 -subj '/CN={{ item.key }}/emailAddress={{ letsencrypt_email }}/subjectAltName={% for name in item.value %}DNS.{{ loop.index }}={{ name }},{% endfor %}'"
-  register: gencsr_cmd
-  changed_when: False
-  with_dict: "{{ letsencrypt_cert_domains }}"
-
-# This makes sure, we regenerate a CSR once the domain list was changed.
-# While args: creates: would not run once a CSR was created.
-- name: Save CSRs
-  become: yes
-  become_user: letsencrypt
-  copy: content={{ item.stdout }} dest={{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.csr
-  when: "item.rc == 0"
-  with_items: "{{ gencsr_cmd.results }}"
-
-
+  command: "openssl req -batch -subj '/' -config {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.openssl.conf -new -key {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.key -out {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.csr"
+  args:
+    creates: "{{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.csr"
+  when: "{{ item.changed }}"
+  with_items: "{{ osslconf_tmpl.results }}"
 
 - name: Manage renew_cert.sh
   template: src=renew_cert.sh.j2 dest={{ letsencrypt_install_dir }}renew_cert.sh owner=letsencrypt group=ssl-cert mode=750
@@ -86,4 +102,4 @@
 
 - name: Force run the service now
   service: name=letsencrypt.service state=started
-
+  changed_when: False

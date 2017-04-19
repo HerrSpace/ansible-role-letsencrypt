@@ -1,0 +1,23 @@
+[ req ]
+default_md          = sha256
+distinguished_name  = req_distinguished_name
+req_extensions      = v3_req
+
+[ req_distinguished_name ]
+commonName       = {{ item.key }}
+commonName_max   = 64
+emailAddress     = {{ letsencrypt_email }}
+emailAddress_max = 64
+
+[ v3_req ]
+basicConstraints = CA:FALSE
+keyUsage         = nonRepudiation, digitalSignature, keyEncipherment
+{% if item.value %}
+subjectAltName   = @alt_names
+
+[alt_names]
+{% for name in item.value %}
+DNS.{{ loop.index }} = {{ name }}
+{% endfor %}
+
+{% endif %}
