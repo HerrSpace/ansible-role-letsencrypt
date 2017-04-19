@@ -17,8 +17,14 @@
     - "{{ letsencrypt_webroot_dir }}"
     - "{{ letsencrypt_install_dir }}"
 
-- name: Copy letsencrypt intermediate certificate
-  copy: src=lets-encrypt-x1-cross-signed.pem dest={{ letsencrypt_cert_dir }}intermediate.pem owner=letsencrypt group=ssl-cert mode=750
+- name: Get letsencrypt intermediate certificate
+  get_url:
+    url: https://letsencrypt.org/certs/lets-encrypt-x3-cross-signed.pem
+    dest: "{{ letsencrypt_cert_dir }}intermediate.pem"
+    checksum: sha256:e446c5e9dbef9d09ac9f7027c034602492437a05ff6c40011d7235fca639c79a
+    owner: letsencrypt
+    group: ssl-cert
+    mode: 0640
 
 # FIXME: re add
 - name: Get acme-tiny
