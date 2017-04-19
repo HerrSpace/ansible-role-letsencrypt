@@ -1,0 +1,10 @@
+---
+
+- name: Template lets-encrypt challenge snippet
+  template:
+    src: lets-encrypt.conf.j2
+    dest: /etc/nginx/snippets/lets-encrypt.conf
+    mode: 644
+    group: 0
+    owner: 0
+  notify: restart nginx
