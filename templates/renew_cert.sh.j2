@@ -35,7 +35,8 @@ for domain in "${ACTIVE_CSRS[@]}"
 do
 	cert_path="$CERT_DIR/domain.$domain.pem"
 
-	if [ ! -e "$cert_path" ]
+	# -s, since the file is empty if sign_csr failed.
+	if [ ! -e "$cert_path" ] || [ ! -s "$cert_path" ]
 	then
 		echo "Creating - $cert_path"
 		sign_csr "$cert_path"
@@ -50,7 +51,7 @@ do
 	fi
 done
 
-if [ "$RELOAD_NGINX" = "true" ];
+if [ "$RELOAD_NGINX" = "true" ]
 then
 	sudo systemctl reload nginx
 fi
