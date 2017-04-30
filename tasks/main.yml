@@ -66,10 +66,9 @@
 # They need to be removed, so the renew_cert.sh recreates them using the new CSRs.
 - name: Remove obsolete SSL Keys.
   shell: >
-    rm {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.csr;
-    rm {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.pem;
-    rm {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.chained.pem;
-  ignore_errors: True
+    rm -f {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.csr;
+    rm -f {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.pem;
+    rm -f {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.chained.pem;
   changed_when: True
   when: "{{ item.changed }}"
   with_items: "{{ osslconf_tmpl.results }}"
