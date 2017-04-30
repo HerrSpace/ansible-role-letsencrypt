@@ -1,5 +1,7 @@
 ---
 # Create Keys, CSRs, signing script and systemd service/timer which keep SSL Certs updated.
+- name: Install git
+  package: name=git state=present
 
 - name: Add group ssl-cert
   group: name=ssl-cert system=yes state=present
