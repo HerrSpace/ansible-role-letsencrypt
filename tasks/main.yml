@@ -70,7 +70,7 @@
     rm -f {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.pem;
     rm -f {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.chained.pem;
   changed_when: True
-  when: "{{ item.changed }}"
+  when: item.changed
   with_items: "{{ osslconf_tmpl.results }}"
   # TODO: just ls -l and remove using the file module
 
@@ -80,7 +80,7 @@
   command: "openssl req -batch -subj '/' -config {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.openssl.conf -new -key {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.key -out {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.csr"
   args:
     creates: "{{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.csr"
-  when: "{{ item.changed }}"
+  when: item.changed
   with_items: "{{ osslconf_tmpl.results }}"
 
 - name: Manage renew_cert.sh
