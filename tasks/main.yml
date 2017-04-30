@@ -13,7 +13,7 @@
   lineinfile: dest=/etc/sudoers line="letsencrypt ALL = NOPASSWD{{':'}} /bin/systemctl reload nginx"
 
 - name: Manage cert and acme webroot directory
-  file: path={{ item }} state=directory owner=letsencrypt group=ssl-cert mode=750
+  file: path={{ item }} state=directory owner=letsencrypt group=ssl-cert mode=755
   with_items:
     - "{{ letsencrypt_cert_dir }}"
     - "{{ letsencrypt_webroot_dir }}"
