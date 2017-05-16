@@ -9,8 +9,17 @@
 - name: Add user letsencrypt
   user: name=letsencrypt system=yes group=ssl-cert state=present home={{ letsencrypt_install_dir }} shell=/bin/bash
 
-- name: Let letsencrypt user reload nginx
-  lineinfile: dest=/etc/sudoers line="letsencrypt ALL = NOPASSWD{{':'}} /bin/systemctl reload nginx"
+- name: "Let letsencrypt user reload {{ letsencrypt_web_server }} (systemctl) "
+  lineinfile:
+    dest: /etc/sudoers
+    line: "letsencrypt ALL = NOPASSWD{{':'}} /bin/systemctl reload {{ letsencrypt_web_server | default('nginx') }}"
+  when: ansible_service_mgr == "systemd"
+
+- name: "Let letsencrypt user reload {{ letsencrypt_web_server }} (SysV init)"
+  lineinfile:
+    dest: /etc/sudoers
+    line: "letsencrypt ALL = NOPASSWD{{':'}} /etc/init.d/{{ letsencrypt_web_server | default('nginx') }} reload"
+  when: ansible_service_mgr != "systemd"
 
 - name: Manage cert and acme webroot directory
   file: path={{ item }} state=directory owner=letsencrypt group=ssl-cert mode=755
@@ -86,21 +95,8 @@
 - name: Manage renew_cert.sh
   template: src=renew_cert.sh.j2 dest={{ letsencrypt_install_dir }}renew_cert.sh owner=letsencrypt group=ssl-cert mode=750
 
-- name: Manage letsencrypt.service
-  template: src=letsencrypt.service.j2 dest=/etc/systemd/system/letsencrypt.service owner=root group=root mode=644
-  register: service_res
+- include: systemd.yml
+  when: ansible_service_mgr == "systemd"
 
-- name: Copy letsencrypt.timer
-  copy: src=letsencrypt.timer dest=/etc/systemd/system/letsencrypt.timer owner=root group=root mode=644
-  register: timer_res
-
-- name: Reload systemd units
-  command: systemctl daemon-reload
-  when: service_res.changed or timer_res.changed
-
-- name: Start and enable letsencrypt.timer
-  service: name=letsencrypt.timer enabled=yes state=started
-
-- name: Force run the service now
-  service: name=letsencrypt.service state=started
-  changed_when: False
+- include: cronjob.yml
+  when: ansible_service_mgr != "systemd"
