@@ -1,0 +1,12 @@
+---
+- name: Install a cronjob for letsencrypt cert renewal
+  cron:
+    name: "Refresh letsencrypt cert"
+    job: "{{ letsencrypt_install_dir }}renew_cert.sh"
+    minute: 23
+    hour: 5
+    day: "*/3"
+    user: letsencrypt
+
+- name: Refresh certificate now
+  shell: "{{ letsencrypt_install_dir }}renew_cert.sh"

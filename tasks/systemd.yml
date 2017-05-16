@@ -1,0 +1,19 @@
+---
+- name: Manage letsencrypt.service
+  template: src=letsencrypt.service.j2 dest=/etc/systemd/system/letsencrypt.service owner=root group=root mode=644
+  register: service_res
+
+- name: Copy letsencrypt.timer
+  copy: src=letsencrypt.timer dest=/etc/systemd/system/letsencrypt.timer owner=root group=root mode=644
+  register: timer_res
+
+- name: Reload systemd units
+  command: systemctl daemon-reload
+  when: service_res.changed or timer_res.changed
+
+- name: Start and enable letsencrypt.timer
+  service: name=letsencrypt.timer enabled=yes state=started
+
+- name: Force run the service now
+  service: name=letsencrypt.service state=started
+  changed_when: False

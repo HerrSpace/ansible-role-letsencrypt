@@ -9,7 +9,7 @@ ACME_DIR="{{ letsencrypt_webroot_dir }}"
 CERT_DIR="{{ letsencrypt_cert_dir }}"
 NO_VERIFY="{{ letsencrypt_no_verify }}"
 
-RELOAD_NGINX=false
+RELOAD_WWWSRV=false
 
 sign_csr () {
 	if [ "$NO_VERIFY" = "True" ]
@@ -28,7 +28,7 @@ sign_csr () {
 
 	cat "$1" "$CERT_DIR/intermediate.pem" > "$CERT_DIR/domain.$domain.chained.pem"
 
-	RELOAD_NGINX="true"
+	RELOAD_WWWSRV="true"
 }
 
 for domain in "${ACTIVE_CSRS[@]}"
@@ -51,7 +51,11 @@ do
 	fi
 done
 
-if [ "$RELOAD_NGINX" = "true" ]
+if [ "$RELOAD_WWWSRV" = "true" ]
 then
-	sudo systemctl reload nginx
+	{% if ansible_service_mgr == "systemd" %}
+	sudo systemctl reload {{ letsencrypt_web_server | default("nginx") }}
+	{% else %}
+	sudo /etc/init.d/{{ letsencrypt_web_server | default("nginx") }} reload
+	{% endif %}
 fi
