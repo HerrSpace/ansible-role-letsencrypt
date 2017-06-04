@@ -86,7 +86,11 @@
 - name: Generate CSRs
   become: yes
   become_user: letsencrypt
-  command: "openssl req -batch -subj '/' -config {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.openssl.conf -new -key {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.key -out {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.csr"
+  command: |
+    openssl req -batch -subj '/'
+    -config {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.openssl.conf
+    -new -key {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.key
+    -out {{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.csr
   args:
     creates: "{{ letsencrypt_cert_dir }}domain.{{ item.item.key }}.csr"
   when: item.changed
