@@ -9,7 +9,7 @@
 - name: Add user letsencrypt
   user: name=letsencrypt system=yes group=ssl-cert state=present home={{ letsencrypt_install_dir }} shell=/bin/bash
 
-- name: "Let letsencrypt user reload {{ letsencrypt_web_server }} (systemctl) "
+- name: "Let letsencrypt user reload {{ letsencrypt_web_server }} (systemctl)"
   lineinfile:
     dest: /etc/sudoers
     line: "letsencrypt ALL = NOPASSWD{{':'}} /bin/systemctl reload {{ letsencrypt_web_server | default('nginx') }}"
